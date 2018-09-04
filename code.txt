@@ -1,0 +1,56 @@
+$pathDataImport = "D:\Websites\sc825\Website\Data_Import"
+$parentPathTemp = "/sitecore/content/Showcase/int/home/Test Import"
+$templateIDTemp = "{4573FA4B-B6DF-4165-BA9F-8DBA934C533F}"
+$DataLocalTemplateID = "{1C82E550-EBCD-4E5D-8ABD-D50D0809541E}"
+
+function Get-DataLocal($path) {
+    $pathData = $path + "/Data"
+    <# Check Data folder is exist #>
+    if (Test-Path -Path $pathData) { Get-Item -Path $pathData }
+    else {
+        New-Item -Path $path -Name "Data" -ItemType $DataLocalTemplateID
+    }
+}
+
+function Main(){
+    <# Read files in folder #>
+    $files = Get-ChildItem $pathDataImport
+    foreach($file in $files)
+    {
+        Write-Host -Object $file.FullName
+        $csv = Import-CSV $file.FullName
+        <# Get Name File #>
+        $pageName = $file.Name -replace $file.Extension, ""
+        <# Check exist parent #>
+        if (-not(Test-Path -Path $parentPathTemp)) { 
+            Write-Host -Object "parent is not exist"
+            exit 
+        }
+        <# Check exist item #>
+        $pagePath = $parentPathTemp + "/" + $pageName
+        if (Test-Path -Path $pagePath) { 
+            Write-Host -Object "page is exist"
+            exit 
+        }
+        $item = New-Item -Path $parentPathTemp -Name $pageName -ItemType $templateIDTemp
+        New-UsingBlock (New-Object Sitecore.Data.BulkUpdateContext) {
+            foreach($row in $csv) {
+                $item.Editing.BeginEdit()
+                switch ($row.Section) {
+                    "Content" {
+                        $item[$row.Field] = $row."Value (en)"
+                    }
+                    "Summary" {
+                        $item[$row.Field] = $row."Value (en)"
+                    }
+                    default {
+                        $item[$row.Field] = $row."Value (en)"
+                    }
+                }
+                $item.Editing.EndEdit()
+            }
+        }
+    }
+}
+
+Get-DataLocal "/sitecore/content/Showcase/int/home/Test Import/samplecontent"
